@@ -1,0 +1,135 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1671\cocoasubrtf600
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 #!/usr/bin/env python3\
+import os\
+import nltk\
+from nltk.tokenize import word_tokenize, sent_tokenize\
+from nltk import ne_chunk\
+\
+os.chdir('/home/huaxia/data')\
+f = open('parse/2632','r', encoding="latin-1")\
+symbols = f.read() # do not convert to lower case for this lab as NE is sensitive to case\
+f.close()\
+\
+#%% POS tagging\
+\
+nltk.pos_tag(['happy', 'I', 'got']) # nltk.pos_tag() takes a list of tokens as an argument\
+\
+sentences1 = sent_tokenize( symbols )\
+sentences2 = [nltk.word_tokenize(sent) for sent in sentences1]\
+sentences3 = [nltk.pos_tag(sent) for sent in sentences2]\
+\
+#%% Named Entity Recognition, not impressive though\
+\
+# create a tree by giving a node label and a list of children\
+tree1 = nltk.Tree('NP', ['Alice'])\
+tree2 = nltk.Tree('NP', ['the', 'rabbit'])\
+tree3 = nltk.Tree('VP', ['chased', tree2])\
+tree = nltk.Tree('S', [tree1, tree3])\
+print(tree)\
+tree.leaves()\
+tree.draw()\
+\
+# create a tree from a string, replace "afternoon" by "morning", you will see a bug\
+tree = nltk.Tree.fromstring('(S (NP (NNP United)) (VP (VBD canceled) (NP (DT the) (NN afternoon) (NNS flights)) (PP (TO to) (NP (NNP Houston)))) (. .))')\
+print(tree)\
+tree.leaves()\
+tree # draw the tree in spyder\
+\
+tree = ne_chunk( sentences3[2] )\
+tree\
+\
+#%% CFG: Parsing\
+\
+from nltk.tree import Tree\
+from nltk.draw.tree import TreeView\
+\
+grammar1 = nltk.CFG.fromstring("""\
+S -> NP VP\
+PP -> P NP\
+NP -> Det N | Det N PP | 'I'\
+VP -> V NP | VP PP\
+Det -> 'an' | 'my'\
+N -> 'elephant' | 'pajamas'\
+V -> 'shot'\
+P -> 'in'\
+""")\
+parser = nltk.ChartParser( grammar1 )\
+\
+sent = "I shot an elephant in my pajamas".split()\
+trees = []\
+for tree in parser.parse(sent):\
+  trees.append(tree)\
+\
+trees[0]\
+trees[1]\
+TreeView(trees[0])._cframe.print_to_file('pajamas1.ps')\
+TreeView(trees[1])._cframe.print_to_file('pajamas2.ps')\
+\
+\
+#%% CFG: Generating\
+\
+from nltk.parse.generate import generate, demo_grammar\
+grammar = nltk.CFG.fromstring(demo_grammar)\
+print(grammar)\
+for sentence in generate(grammar, depth=4):\
+  print(' '.join(sentence))\
+\
+len(list(generate(grammar, depth=5)))\
+#!/usr/bin/python\
+\
+'''\
+cd /opt/corenlp/stanford-corenlp-full-2018-10-0\
+java -Xmx4g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer -preload tokenize,ssplit,pos,lemma,ner,parse,depparse -threads 4 -status_port 9000 -port 9000 -timeout 15000 &\
+'''\
+\
+# this is the official Python interface to the Stanford CoreNLP, a collection of pre-trained models\
+# For the definition of the class StanfordCoreNLP, see https://github.com/Lynten/stanford-corenlp/blob/master/stanfordcorenlp/corenlp.py\
+import os\
+STANFORD_PATH = "/opt/corenlp/stanford-corenlp-full-2018-10-05/"\
+os.environ['CLASSPATH'] = STANFORD_PATH\
+os.environ['STANFORD_PARSER'] = STANFORD_PATH\
+os.environ['STANFORD_MODELS'] = STANFORD_PATH\
+\
+from stanfordcorenlp import StanfordCoreNLP \
+nlp = StanfordCoreNLP('http://localhost', port=9000, timeout=30000) \
+\
+symbols = 'United canceled the afternoon flights to Houston. JetBlue canceled our flight this morning which was already late.'\
+\
+import nltk\
+sentences = nltk.sent_tokenize( symbols )\
+\
+[nlp.word_tokenize(sent) for sent in sentences]\
+[nlp.pos_tag(sent) for sent in sentences]\
+[nlp.ner(sent) for sent in sentences]\
+\
+parse_results = [nlp.parse(sent) for sent in sentences]\
+import re\
+parse_results = [re.sub("\\(ROOT", '', t) for t in parse_results]\
+parse_results = [re.sub("\\)$", '', t) for t in parse_results]\
+parse_results = [re.sub("\\n", '', t) for t in parse_results]\
+trees = [nltk.Tree.fromstring(t) for t in parse_results ]\
+trees[0]\
+trees[1]\
+\
+[nlp.dependency_parse(sent) for sent in sentences] # each token corresponds to the triple: dependency type, governor (from), dependent (to)\
+# stanfordcorenlp only returns basic dependencies, which is one of several offered by CoreNLP\
+\
+\
+annotations = [nlp.annotate(sent) for sent in sentences]\
+\
+#%% Example from https://stanfordnlp.github.io/CoreNLP/\
+\
+sent = "President Xi Jingping of China, on his first state visit to the United States, showed off his familiarity with American history and pop culture on Tuesday night."\
+[x for x in nlp.ner(sent) if x[1]!='O']\
+nlp.coref(sent) # output: sentNum, startIndex, endIndex, text\
+nlp.dependency_parse(sent)\
+\
+# Example from https://nlp.stanford.edu/projects/coref.shtml\
+nlp.coref('"I voted for Nader because he was most aligned with my values." She said.') # output: sentNum, startIndex, endIndex, text\
+}
